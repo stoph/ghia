@@ -69,7 +69,6 @@ void setup() {
   
 
   // Volume controls
-  //volume_knob.setChangedHandler(volumeSet);
   volume_knob.setLeftRotationHandler(volumeDown);
   volume_knob.setRightRotationHandler(volumeUp);
   volume_button.setTapHandler(volumeClick);
