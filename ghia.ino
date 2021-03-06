@@ -102,9 +102,18 @@ void loop() {
   // Check battery voltage
   uint16_t batt = analogRead(A13);
 
-  // Check volume
+  if (batt < 3.4) {
+    //deep sleep
+  }
+
+  // Check volume and buttons
   volume_knob.loop();
   volume_button.loop();
+  button_1.loop();
+  button_2.loop();
+  button_3.loop();
+  button_4.loop();
+  button_5.loop();
 
   // Check ignition
   ignition = digitalRead(IGNITION_PIN);
