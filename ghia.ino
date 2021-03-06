@@ -67,8 +67,14 @@ void setup() {
   // Config pinModes
   pinMode(IGNITION_PIN, INPUT); //INPUT_PULLUP
   
-
-  // Volume controls
+  // Buttons callbacks
+  button_1.setTapHandler(button1Click);
+  button_2.setTapHandler(button2Click);
+  button_3.setTapHandler(button3Click);
+  button_4.setTapHandler(button4Click);
+  button_5.setTapHandler(button5Click);
+  
+  // Volume callbacks
   volume_knob.setLeftRotationHandler(volumeDown);
   volume_knob.setRightRotationHandler(volumeUp);
   volume_button.setTapHandler(volumeClick);
@@ -105,8 +111,6 @@ void loop() {
   
   /*
   if (ignition) {
-    // wait for button presses
-    // register callbacks
     debug("Ignition on... Ready for audio control");
     if(bleKeyboard.isConnected()) {
       Serial.println("Device connected");
@@ -114,9 +118,7 @@ void loop() {
       delay(1);
       bleKeyboard.releaseAll();
     }
-    delay(1000);
   } else {
-    //unregister callbacks (if set)
     debug("Ignition off... Running presence detection");
     bluetooth();
     delay(5000);
@@ -124,7 +126,6 @@ void loop() {
 
   debug("next iteration");
 
-  ignition = true;
   */
 
 }
