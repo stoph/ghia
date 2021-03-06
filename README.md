@@ -1,5 +1,5 @@
-# Ghia controller
-This is the code for automation of my 1961 VW Karmann Ghia convertible using an Arduino ESP32. It adds presence detection when the car is off, and BLE audio control when the car is on.
+# Ghia automation
+This is the code for automation of my 1961 VW Karmann Ghia convertible using an Arduino ESP32. It adds presence detection when the car is off and BLE audio control when the car is on.
 
 Future versions will add tachometer and temperature readings of the engine, GPS and telemetry data, and additional interior and exterior lighting controls.
 
