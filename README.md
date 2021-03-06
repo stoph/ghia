@@ -1,10 +1,14 @@
 # Ghia controller
-This is the master script for control of the Ghia using an Arduino ESP32. This script adds presence detection when the car is off, and BLE audio control when the car is on.
+This is the code for automation of my 1961 VW Karmann Ghia convertible using an Arduino ESP32. It adds presence detection when the car is off, and BLE audio control when the car is on.
 
 Future versions will add tachometer and temperature readings of the engine, GPS and telemetry data, and addtional interior and exterior lighting controls.
 
+![Ghia](https://github.christophkhouri.com/ghia/ghia.jpeg?)
+
 ## Hardware
 Currently I am running an [Adafruit HUZZAH32 – ESP32 Feather Board](https://www.adafruit.com/product/3405) as the main controller. It is mounted inside a gutted Sapphire 1 radio. (**project link coming**). The original volume knob has been replaced by a rotaery encoder and the 5 AM radio preset push buttons have switches installed to use them as digital buttons. There is also a WS2812 LED installed behind the frequency dial to illuminate differetn colors based on different states. (e.g. different colors based on button presses, if the radio is muted, when a device is connected, or presence detection modes). There are also relays installed to control 12v LED strips for the interior, hood, and trunk area.
+
+![Sapphire I Radio](https://github.christophkhouri.com/ghia/sapphite_I_gutted.jpeg?)
 
 Currently I am using a [Xiaomi Mi Band 5](https://amzn.to/3rdBexL) as the BLE trigger. It allows discovery at all times. (Initially I tried the Wyze band, but it disables discovery while connected to a phone)
 
