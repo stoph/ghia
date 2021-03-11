@@ -27,7 +27,7 @@ void setupPresence() {
   pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
   pBLEScan->setActiveScan(true);
   delay(100);
-  debug("Done initializing BLE for presense");
+  DEBUG_PRINTLN("Done initializing BLE for presense");
 }
 
 void hello() {

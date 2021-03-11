@@ -1,23 +1,27 @@
-#define DEBUG true
+#define ENABLE_DEBUG
+#include "DebugUtil.h"
 
 #include "config.h"
 
 // Global variables
 bool ignition = false;
+bool lastIginitionState = false;
 int volume  = 5; // Default volume
+bool keyboardConnected = false;
 
 // Pin assignments
-#define BUTTON_1_PIN      A1
-#define BUTTON_2_PIN      A2
-#define BUTTON_3_PIN      A3
-#define BUTTON_4_PIN      A4
-#define BUTTON_5_PIN      A5
+#define BATTERY_PIN       A13 // 26
+#define IGNITION_PIN      A0  // 26
+#define BUTTON_1_PIN      A1  // 25
+#define BUTTON_2_PIN      A2  // 34
+#define BUTTON_3_PIN      A3  // 39
+#define BUTTON_4_PIN      A4  // 36
+#define BUTTON_5_PIN      A5  // 4
 #define LED_FREQ_PIN      27
 #define LED_INTERIOR_PIN  33
 #define ROTARY_A_PIN      15
 #define ROTARY_B_PIN      32
 #define ROTARY_SWITCH_PIN 14
-#define IGNITION_PIN      21
 
 // Button initialization
 #include "Button2.h";
@@ -49,19 +53,9 @@ Adafruit_NeoPixel frequency_led(1, LED_FREQ_PIN, NEO_GRB + NEO_KHZ800);
 #define LED_INTERIOR_COUNT 12
 Adafruit_NeoPixel interior_led(LED_INTERIOR_COUNT, LED_INTERIOR_PIN, NEO_GRB + NEO_KHZ800);
 
-void debug(String msg, bool newline=true) {
-  if (DEBUG) {
-    if (newline) {
-      Serial.println(msg);
-    } else {
-      Serial.print(msg);
-    }
-  }
-}
-
 void setup() {
   Serial.begin(115200);
-  delay(1000);
+  delay(500);
   Serial.println();
 
   // Config pinModes
@@ -81,9 +75,9 @@ void setup() {
   volume_button.setLongClickHandler(volumeLongClick);
   volume_knob.resetPosition(volume);
   
-  debug("Setting up presence detection");
+  DEBUG_PRINTLN("Setting up presence detection");
   setupPresence();
-  debug("Setting up audio control");
+  DEBUG_PRINTLN("Setting up audio control");
   setupAudioControl();
 
   // Init LEDs
@@ -94,47 +88,67 @@ void setup() {
   interior_led.begin();
   interior_led.show();
   interior_led.setBrightness(255);
-  
+
+  // Calm before the storm
+  delay(500);
 }
 
 void loop() {
-
+  
   // Check battery voltage
-  uint16_t batt = analogRead(A13);
+    word batteryReading = analogRead(BATTERY_PIN);
 
-  if (batt < 3.4) {
-    //deep sleep
+  if (batteryReading < 1700) { // ~3.4v
+    //deep sleep or power off?
   }
 
-  // Check volume and buttons
-  volume_knob.loop();
-  volume_button.loop();
-  button_1.loop();
-  button_2.loop();
-  button_3.loop();
-  button_4.loop();
-  button_5.loop();
-
-  // Check ignition
-  ignition = digitalRead(IGNITION_PIN);
-  
-  /*
-  if (ignition) {
-    debug("Ignition on... Ready for audio control");
-    if(bleKeyboard.isConnected()) {
-      Serial.println("Device connected");
-      //bleKeyboard.write(KEY_MEDIA_PLAY_PAUSE);
-      delay(1);
-      bleKeyboard.releaseAll();
-    }
+  // Check ignition via USB power connection
+  word ignitionReading = analogRead(IGNITION_PIN);
+  if (ignitionReading > 2300) { // https://forums.adafruit.com/viewtopic.php?f=24&t=176559&p=859862#p859898
+    ignition = true;
   } else {
-    debug("Ignition off... Running presence detection");
+    ignition = false;
+  }
+  
+  if (ignition) { // Connect as keyboard and start audio control
+
+    if (lastIginitionState != ignition) {
+      DEBUG_PRINTLN("Ignition on... Ready for audio control");
+    }
+    
+    // If keyboard is not connected, connected
+    if (!keyboardConnected) {
+      DEBUG_PRINTLN("Connecting keyboard");
+      bleKeyboard.begin();
+      keyboardConnected = true;
+    }
+    
+    // Check volume and buttons
+    volume_knob.loop();
+    volume_button.loop();
+    button_1.loop();
+    button_2.loop();
+    button_3.loop();
+    button_4.loop();
+    button_5.loop();
+    
+  } else { // Start scanning for known devices
+    
+    if (lastIginitionState != ignition) {
+      DEBUG_PRINTLN("Ignition off... Running presence detection");
+    }
+    // Disconnect keyboard if connected
+    if (keyboardConnected) {
+      DEBUG_PRINTLN("Disconnecting keyboard");
+      bleKeyboard.end();
+      keyboardConnected = false;
+    }
+    
     bluetooth();
     delay(5000);
+    //DEBUG_PRINTLN("next iteration");
   }
-
-  debug("next iteration");
-
-  */
+  
+  lastIginitionState = ignition;
 
 }
