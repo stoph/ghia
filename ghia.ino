@@ -6,22 +6,41 @@
 // Global variables
 bool ignition = false;
 bool lastIginitionState = false;
-int volume  = 5; // Default volume
 bool keyboardConnected = false;
+bool frequency_led_state = false;
+bool muted = false;
+unsigned long frequency_led_timer;
+
+// Define colors
+#define OFF         0x000000
+#define RED         0xff0000
+#define GREEN       0x00ff00
+#define BLUE        0x0000ff
+#define GREY        0xb2beb5
+#define YELLOW      0xffff00
+#define PURPLE      0x8a2be2
+#define PINK        0xff007f
+#define CHARTREUSE  0x7fff00
+#define CYAN        0x00ffff
+
+/*
+ * ESP32 Note: GPIO 34,35,36,39 do not have internal PULL-ups.
+ * Have to manually pull-up with a 10K resistor to 3.3v
+*/
 
 // Pin assignments
-#define BATTERY_PIN       A13 // 26
+#define BATTERY_PIN       A13 // 35 (Special pin on Huzzah32)
 #define IGNITION_PIN      A0  // 26
-#define BUTTON_1_PIN      A1  // 25
-#define BUTTON_2_PIN      A2  // 34
-#define BUTTON_3_PIN      A3  // 39
-#define BUTTON_4_PIN      A4  // 36
-#define BUTTON_5_PIN      A5  // 4
+#define BUTTON_1_PIN      A1  // 25  Green
+#define BUTTON_2_PIN      A2  // 34  Red
+#define BUTTON_3_PIN      A3  // 39  Yellow
+#define BUTTON_4_PIN      A4  // 36  White
+#define BUTTON_5_PIN      A5  // 4   Blue
 #define LED_FREQ_PIN      27
 #define LED_INTERIOR_PIN  33
-#define ROTARY_A_PIN      15
-#define ROTARY_B_PIN      32
-#define ROTARY_SWITCH_PIN 14
+#define ROTARY_A_PIN      15  // Green
+#define ROTARY_B_PIN      14  // Bllue
+#define ROTARY_SWITCH_PIN 32  // Red
 
 // Button initialization
 #include "Button2.h";
@@ -33,7 +52,7 @@ Button2 button_5 = Button2(BUTTON_5_PIN);
 
 // Rotary Encoder initialization
 #include "ESPRotary.h";
-ESPRotary volume_knob = ESPRotary(ROTARY_A_PIN, ROTARY_B_PIN, 4, 0, 20); // ROTARY_PIN1, ROTARY_PIN2, CLICKS_PER_STEP, MIN_POS, MAX_POS
+ESPRotary volume_knob = ESPRotary(ROTARY_A_PIN, ROTARY_B_PIN, 4); // ROTARY_PIN1, ROTARY_PIN2, CLICKS_PER_STEP, MIN_POS, MAX_POS
 Button2 volume_button = Button2(ROTARY_SWITCH_PIN);
 
 // Audio control initialization
@@ -50,7 +69,6 @@ BLEScan* pBLEScan;
 // LED initialization
 #include <Adafruit_NeoPixel.h>
 Adafruit_NeoPixel frequency_led(1, LED_FREQ_PIN, NEO_GRB + NEO_KHZ800);
-#define LED_INTERIOR_COUNT 12
 Adafruit_NeoPixel interior_led(LED_INTERIOR_COUNT, LED_INTERIOR_PIN, NEO_GRB + NEO_KHZ800);
 
 void setup() {
@@ -60,6 +78,9 @@ void setup() {
 
   // Config pinModes
   pinMode(IGNITION_PIN, INPUT); //INPUT_PULLUP
+
+  // Setup Deep Sleep wakeup
+  esp_sleep_enable_ext1_wakeup(WAKEUP_PIN_BITMASK, ESP_EXT1_WAKEUP_ALL_LOW);
   
   // Buttons callbacks
   button_1.setTapHandler(button1Click);
@@ -73,7 +94,6 @@ void setup() {
   volume_knob.setRightRotationHandler(volumeUp);
   volume_button.setTapHandler(volumeClick);
   volume_button.setLongClickHandler(volumeLongClick);
-  volume_knob.resetPosition(volume);
   
   DEBUG_PRINTLN("Setting up presence detection");
   setupPresence();
@@ -82,24 +102,41 @@ void setup() {
 
   // Init LEDs
   frequency_led.begin();
-  frequency_led.show();
   frequency_led.setBrightness(255);
-
+  frequency_led.setPixelColor(0, CYAN);
+  frequency_led.show();
+  
   interior_led.begin();
-  interior_led.show();
   interior_led.setBrightness(255);
+  interior_led.clear();
+  interior_led.show();
 
   // Calm before the storm
   delay(500);
 }
 
 void loop() {
+  unsigned long current_led_timer = millis();
+  
+  // Toggle off LED after audio control received
+  if ( frequency_led_state ) {
+    if ( (current_led_timer - frequency_led_timer) > FREQUENCY_LED_DELAY) {
+      frequency_led.setPixelColor(0, CYAN);
+      frequency_led.show();
+      frequency_led_state = false;
+    }
+  }
   
   // Check battery voltage
-    word batteryReading = analogRead(BATTERY_PIN);
+  word batteryReading = analogRead(BATTERY_PIN);
 
+  // Go to (deep) sleep if battery is low
   if (batteryReading < 1700) { // ~3.4v
-    //deep sleep or power off?
+    frequency_led.setPixelColor(0, OFF);
+    frequency_led.show();
+    interior_led.setPixelColor(0, OFF);
+    interior_led.show();
+    esp_deep_sleep_start();
   }
 
   // Check ignition via USB power connection
@@ -118,8 +155,9 @@ void loop() {
     
     // If keyboard is not connected, connected
     if (!keyboardConnected) {
-      DEBUG_PRINTLN("Connecting keyboard");
+      DEBUG_PRINT("Connecting keyboard...");
       bleKeyboard.begin();
+      DEBUG_PRINTLN("done");
       keyboardConnected = true;
     }
     
@@ -139,14 +177,14 @@ void loop() {
     }
     // Disconnect keyboard if connected
     if (keyboardConnected) {
-      DEBUG_PRINTLN("Disconnecting keyboard");
+      DEBUG_PRINT("Disconnecting keyboard...");
       bleKeyboard.end();
+      DEBUG_PRINTLN("done");
       keyboardConnected = false;
     }
     
     bluetooth();
     delay(5000);
-    //DEBUG_PRINTLN("next iteration");
   }
   
   lastIginitionState = ignition;
