@@ -143,8 +143,6 @@ void loop() {
     ignition = false;
   }
   
-  ignition = false;
-  
   if (ignition) { // Connect as keyboard and start audio control
     
     frequency_led.setPixelColor(0, CYAN);

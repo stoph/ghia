@@ -21,13 +21,13 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 };
 
 void setupPresence() {
-  //BLEDevice::init("Ghia (Presence)");
+  BLEDevice::init("Ghia");
   
   pBLEScan = BLEDevice::getScan();
   pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
   pBLEScan->setActiveScan(true);
   delay(100);
-  DEBUG_PRINTLN("Done initializing BLE for presense");
+  DEBUG_PRINTLN("Done initializing BLE for presence");
 }
 
 void hello() {
