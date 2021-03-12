@@ -1,6 +1,5 @@
 #define ENABLE_DEBUG
 #include "DebugUtil.h"
-
 #include "config.h"
 
 // Global variables
@@ -103,7 +102,7 @@ void setup() {
   // Init LEDs
   frequency_led.begin();
   frequency_led.setBrightness(255);
-  frequency_led.setPixelColor(0, CYAN);
+  frequency_led.setPixelColor(0, OFF);
   frequency_led.show();
   
   interior_led.begin();
@@ -132,10 +131,7 @@ void loop() {
 
   // Go to (deep) sleep if battery is low
   if (batteryReading < 1700) { // ~3.4v
-    frequency_led.setPixelColor(0, OFF);
-    frequency_led.show();
-    interior_led.setPixelColor(0, OFF);
-    interior_led.show();
+    disableLEDs();
     esp_deep_sleep_start();
   }
 
@@ -147,8 +143,13 @@ void loop() {
     ignition = false;
   }
   
+  ignition = false;
+  
   if (ignition) { // Connect as keyboard and start audio control
-
+    
+    frequency_led.setPixelColor(0, CYAN);
+    frequency_led.show();
+  
     if (lastIginitionState != ignition) {
       DEBUG_PRINTLN("Ignition on... Ready for audio control");
     }
@@ -174,6 +175,7 @@ void loop() {
     
     if (lastIginitionState != ignition) {
       DEBUG_PRINTLN("Ignition off... Running presence detection");
+      disableLEDs();
     }
     // Disconnect keyboard if connected
     if (keyboardConnected) {
@@ -182,7 +184,7 @@ void loop() {
       DEBUG_PRINTLN("done");
       keyboardConnected = false;
     }
-    
+    pulseFrequencyLED(CYAN);
     bluetooth();
     delay(5000);
   }
