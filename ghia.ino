@@ -2,47 +2,21 @@
 #include "DebugUtil.h"
 #include "config.h"
 
+// Add these with your other defines/constants
+#define BATTERY_THRESHOLD 1700    // ~3.4v threshold for low battery
+#define IGNITION_THRESHOLD 2300   // USB power connection threshold
+#define SERIAL_BAUD_RATE 115200
+
 // Global variables
 bool ignition = false;
-bool lastIginitionState = false;
+bool lastIgnitionState = false;
 bool keyboardConnected = false;
 bool frequency_led_state = false;
 bool muted = false;
 unsigned long frequency_led_timer;
 
-// Define colors
-#define OFF         0x000000
-#define RED         0xff0000
-#define GREEN       0x00ff00
-#define BLUE        0x0000ff
-#define GREY        0xb2beb5
-#define YELLOW      0xffff00
-#define PURPLE      0x8a2be2
-#define PINK        0xff007f
-#define CHARTREUSE  0x7fff00
-#define CYAN        0x00ffff
-
-/*
- * ESP32 Note: GPIO 34,35,36,39 do not have internal PULL-ups.
- * Have to manually pull-up with a 10K resistor to 3.3v
-*/
-
-// Pin assignments
-#define BATTERY_PIN       A13 // 35 (Special pin on Huzzah32)
-#define IGNITION_PIN      A0  // 26
-#define BUTTON_1_PIN      A1  // 25  Green
-#define BUTTON_2_PIN      A2  // 34  Red
-#define BUTTON_3_PIN      A3  // 39  Yellow
-#define BUTTON_4_PIN      A4  // 36  White
-#define BUTTON_5_PIN      A5  // 4   Blue
-#define LED_FREQ_PIN      27
-#define LED_INTERIOR_PIN  33
-#define ROTARY_A_PIN      15  // Green
-#define ROTARY_B_PIN      14  // Bllue
-#define ROTARY_SWITCH_PIN 32  // Red
-
 // Button initialization
-#include "Button2.h";
+#include "Button2.h"
 Button2 button_1 = Button2(BUTTON_1_PIN);
 Button2 button_2 = Button2(BUTTON_2_PIN);
 Button2 button_3 = Button2(BUTTON_3_PIN);
@@ -50,7 +24,7 @@ Button2 button_4 = Button2(BUTTON_4_PIN);
 Button2 button_5 = Button2(BUTTON_5_PIN);
 
 // Rotary Encoder initialization
-#include "ESPRotary.h";
+#include "ESPRotary.h"
 ESPRotary volume_knob = ESPRotary(ROTARY_A_PIN, ROTARY_B_PIN, 4); // ROTARY_PIN1, ROTARY_PIN2, CLICKS_PER_STEP, MIN_POS, MAX_POS
 Button2 volume_button = Button2(ROTARY_SWITCH_PIN);
 
@@ -71,7 +45,7 @@ Adafruit_NeoPixel frequency_led(1, LED_FREQ_PIN, NEO_GRB + NEO_KHZ800);
 Adafruit_NeoPixel interior_led(LED_INTERIOR_COUNT, LED_INTERIOR_PIN, NEO_GRB + NEO_KHZ800);
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(SERIAL_BAUD_RATE);
   delay(500);
   Serial.println();
 
@@ -81,12 +55,12 @@ void setup() {
   // Setup Deep Sleep wakeup
   esp_sleep_enable_ext1_wakeup(WAKEUP_PIN_BITMASK, ESP_EXT1_WAKEUP_ALL_LOW);
   
-  // Buttons callbacks
-  button_1.setTapHandler(button1Click);
-  button_2.setTapHandler(button2Click);
-  button_3.setTapHandler(button3Click);
-  button_4.setTapHandler(button4Click);
-  button_5.setTapHandler(button5Click);
+  // Setup button handlers
+  button_1.setTapHandler(button1Click);  // Media previous
+  button_2.setTapHandler(button2Click);  // Media play/pause
+  button_3.setTapHandler(button3Click);  // Media next
+  button_4.setTapHandler(button4Click);  // Custom function 1
+  button_5.setTapHandler(button5Click);  // Custom function 2
   
   // Volume callbacks
   volume_knob.setLeftRotationHandler(volumeDown);
@@ -97,10 +71,16 @@ void setup() {
   DEBUG_PRINTLN("Setting up presence detection");
   setupPresence();
   DEBUG_PRINTLN("Setting up audio control");
-  setupAudioControl();
+  if (!setupAudioControl()) {
+    DEBUG_PRINTLN("Failed to setup audio control");
+    // Handle error condition
+  }
 
   // Init LEDs
-  frequency_led.begin();
+  if (!frequency_led.begin()) {
+    DEBUG_PRINTLN("Failed to initialize frequency LED");
+    // Handle error
+  }
   frequency_led.setBrightness(255);
   frequency_led.setPixelColor(0, OFF);
   frequency_led.show();
@@ -130,14 +110,14 @@ void loop() {
   word batteryReading = analogRead(BATTERY_PIN);
 
   // Go to (deep) sleep if battery is low
-  if (batteryReading < 1700) { // ~3.4v
+  if (batteryReading < BATTERY_THRESHOLD) { // ~3.4v
     disableLEDs();
     esp_deep_sleep_start();
   }
 
   // Check ignition via USB power connection
   word ignitionReading = analogRead(IGNITION_PIN);
-  if (ignitionReading > 2300) { // https://forums.adafruit.com/viewtopic.php?f=24&t=176559&p=859862#p859898
+  if (ignitionReading > IGNITION_THRESHOLD) { // https://forums.adafruit.com/viewtopic.php?f=24&t=176559&p=859862#p859898
     ignition = true;
   } else {
     ignition = false;
@@ -148,7 +128,7 @@ void loop() {
     frequency_led.setPixelColor(0, CYAN);
     frequency_led.show();
   
-    if (lastIginitionState != ignition) {
+    if (lastIgnitionState != ignition) {
       DEBUG_PRINTLN("Ignition on... Ready for audio control");
     }
     
@@ -171,7 +151,7 @@ void loop() {
     
   } else { // Start scanning for known devices
     
-    if (lastIginitionState != ignition) {
+    if (lastIgnitionState != ignition) {
       DEBUG_PRINTLN("Ignition off... Running presence detection");
       disableLEDs();
     }
@@ -187,6 +167,6 @@ void loop() {
     delay(5000);
   }
   
-  lastIginitionState = ignition;
+  lastIgnitionState = ignition;
 
 }
